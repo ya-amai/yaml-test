@@ -1,7 +1,17 @@
 import yaml
 from copy import deepcopy
-from jq import jq
+from logging import getLogger, StreamHandler, DEBUG, WARNING
 from pprint import pprint as pp
+from jq import jq
+
+# initialize logging
+logger = getLogger(__name__)
+_handler = StreamHandler()
+_handler.setLevel(DEBUG)
+logger.addHandler(_handler)
+logger.setLevel(WARNING)
+_debug = logger.debug
+
 
 
 # datas
@@ -61,15 +71,28 @@ _if: {"when": False}
     "result": {}
     },
 
+    # complex duplicate
+    {"data": """
+other: ["a"]
+$"object_\\(.item[1])": 100
+comp:
+  data:
+    test: $100+.item[1]
+    _dup: {"with": [1,2]}
+_dup: {"with": [1,2]}
+    """,
+    "result": {"other": ["a"], "object_1": 100, "object_2": 100, "comp": {"data": {"test": 102}}}
+    },
+
 ]
 
 def _jq(s, c):
-    print("+++:", s, c)
+    _debug("    +++: jq in %s, %s", s, c)
     if isinstance(s, str) and s.startswith("$"):
-        print("+++: jqin", s[1:])
         ret = jq(s[1:]).transform(c)
     else:
         ret = s
+    _debug("    +++: jq out %s", ret)
     return ret
 
 def _process_include(data, context, out):
@@ -133,38 +156,76 @@ def _process_if(data, context, out):
         for k in obj.keys():
             data.pop(k, None)
 
-def process(data, context, out={}):
-    print("***: Input = %s" % data)
-    print("***: Context = %s" % context)
-    print("***: Output = %s" % out)
+def _process(data, context, out={}):
+    _debug("***: Input = %s", data)
+    _debug("***: Context = %s", context)
+    _debug("***: Output = %s", out)
 
     if isinstance(data, dict):
-        _process_include(data, context, out)
-        _process_dup(data, context, out)
-        _process_if(data, context, out)
-        for k, v in data.items():
-            print(out)
-            print("+++: Iter", k, v)
-            if isinstance(v, dict):
-                out[k] = {}
-                process(data[k], context, out[k])
-                continue
-            out[k] = v
+        # process meta-key
+        if "_dup" in data.keys():
+            value = data["_dup"]["with"]
+            data.pop("_dup", None)
+            ret = _jq(value, context)
 
-    return out 
+            # duplicate with loop
+            for elm in enumerate(ret) if isinstance(ret, list) else ret.items():
+                # import pdb; pdb.set_trace()
+                context.update({"item": elm})
+                tmp = {}
+                _process(data, context, tmp)
+                out.update(tmp)
+        elif "_include" in data.keys():
+            _debug("###: ignore include ...")
+        else:
+            for k, v in data.items():
+                key = _jq(k, context)
+                out[key] = _process(v, context, out={})
+
+    elif isinstance(data, list):
+        _debug("###: ignore list ...")
+        out = data
+    else:
+        out = _jq(data, context)
+
+    #_debug("***: Output = %s", out)
+    return out
+
+def process(data, context):
+    return _process(deepcopy(data), deepcopy(context), {})
+
+#        _process_include(data, context, out)
+#        _process_dup(data, context, out)
+#        _process_if(data, context, out)
+#        for k, v in data.items():
+#            logger.debug("+++: Out %s", out)
+#            logger.debug("+++: Iter %s, %s", k, v)
+#            if isinstance(v, dict):
+#                out[k] = {}
+#                process(data[k], context, out[k])
+#                continue
+#            out[k] = v
             
+def _process_with_debug(idx, ex, data, context, out={}):
+    logger.setLevel(DEBUG)
+    _debug("%03d: ##############################", idx)
+    ret = process(data, context, out)
+    _debug("***: Result = %s", ret)
+    _debug("-->: Expect = %s", ex)
+    _debug("-->: %s", (ret == ex))
+    _debug("")
+    logger.setLevel(WARNING)
+
 def main():
     context = DATA
     for i, ex in enumerate(EXAMPLES):
-        #if i not in (0,1,2,3,4,5,6):
-        # if i not in (3,4,):
-        #    continue
-        print("%03d: ##############################" % i)
-        ret = process(yaml.load(ex["data"]), context, {})
-        print("***: Result = %s" % ret)
-        print("-->: Expect = %s" % (ex["result"]))
-        print("-->: %s" % (ret == ex["result"]))
-        print("")
+        if i not in (7,):
+            continue
+        d = yaml.load(ex["data"])
+        e = ex["result"]
+        ret = process(d, context)
+        if (ret != e):
+            _process_with_debug(i, e, d, context)
 
 if __name__ == '__main__':
     main()
