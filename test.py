@@ -53,13 +53,14 @@ _dup: {"with": [1,2]}
     "result": {"other": ["a"], "object_1": 100, "object_2": 100}
     },
 
-    # simple exists(if)
+    # simple if
     {"data": """
 object: 100
-_exsists: {"when": False}
+_if: {"when": False}
     """,
     "result": {}
     },
+
 ]
 
 def _jq(s, c):
@@ -74,34 +75,25 @@ def _jq(s, c):
 def _process_include(data, context, out):
     # check data has include key
     if "_include" not in data:
-        return out
+        return
 
     # process jq value
-    value = data["_include"]["from"]
-    if value.startswith("$"):
-        ret = jq(value[1:]).transform(context)
-    else:
-        ret = value
-
     # store result
-    # import pdb; pdb.set_trace()
-    out.update(ret)
-    data.pop("_include")
+    value = data["_include"]["from"]
+    out.update(_jq(value, context))
 
-    return out
+    # import pdb; pdb.set_trace()
+    data.pop("_include")
 
 def _process_dup(data, context, out):
     # check data has include key
     if "_dup" not in data:
-        return out
+        return
 
     # process jq value
     # import pdb; pdb.set_trace()
     value = data["_dup"]["with"]
-    if isinstance(value, str) and value.startswith("$"):
-        ret = jq(value[1:]).transform(context)
-    else:
-        ret = value
+    ret = _jq(value, context)
     
     # make deepcopy for duplicate object
     obj = deepcopy(data)
@@ -121,7 +113,25 @@ def _process_dup(data, context, out):
         print("+++: Delete duplicated object %s" % k)
         data.pop(k, None)
 
-    return out
+def _process_if(data, context, out):
+    # check data has include key
+    if "_if" not in data:
+        return out
+
+    # make deepcopy for duplicate object
+    obj = deepcopy(data)
+
+    # process jq value
+    value = data["_if"]["when"]
+    ret = _jq(value, context)
+
+    # remove if retrun true
+    out.pop("_if", None)
+    if ret:
+        return
+    else:
+        for k in obj.keys():
+            data.pop(k, None)
 
 def process(data, context, out={}):
     print("***: Input = %s" % data)
@@ -131,6 +141,7 @@ def process(data, context, out={}):
     if isinstance(data, dict):
         _process_include(data, context, out)
         _process_dup(data, context, out)
+        _process_if(data, context, out)
         for k, v in data.items():
             print(out)
             print("+++: Iter", k, v)
@@ -145,9 +156,9 @@ def process(data, context, out={}):
 def main():
     context = DATA
     for i, ex in enumerate(EXAMPLES):
-        if i not in (0,1,2,3,4,5,6):
+        #if i not in (0,1,2,3,4,5,6):
         # if i not in (3,4,):
-            continue
+        #    continue
         print("%03d: ##############################" % i)
         ret = process(yaml.load(ex["data"]), context, {})
         print("***: Result = %s" % ret)
