@@ -1,0 +1,91 @@
+# context value
+---
+a:
+  key: value
+b: 100
+
+################################################################################
+#
+# Example extended-yaml datas
+# Two yaml document per test case
+#
+################################################################################
+
+# simple include
+---
+_include: {"from": "$.a"}
+---
+key: value
+
+
+# simple include with other key
+---
+_include: {"from": "$.a"}
+other: 100
+---
+key: value
+other: 100
+
+# simple include to sub-object
+---
+object:
+  _include: {"from": "$.a"}
+---
+object:
+    key: value
+
+# simple include to sub-object with other key
+---
+object:
+  other: "bbb"
+  _include: {"from": "$.a"}
+---
+object:
+    key: value
+    other: bbb
+
+# simple loop
+---
+$"object_\(.item[0][1])": 100
+_dup: {"with": [1,2]}
+---
+object_1: 100
+object_2: 100
+
+# simple loop with other key
+---
+other: ["a"]
+$"object_\(.item[0][1])": 100
+_dup: {"with": [1,2]}
+---
+other: ["a"]
+object_1: 100
+object_2: 100
+
+# multi loop
+---
+other: ["a"]
+$"object_\(.item[0][1])": 100
+comp:
+  data:
+    test: $100+.item[1][1]
+    _dup: {"with": [1,2]}
+_dup: {"with": [1,2]}
+---
+other: ["a"]
+object_1: 100
+object_2: 100
+comp:
+  data:
+    test: 102
+
+# include with loop
+---
+$(.name[1]):
+  _include: {"from": "$.a"}
+_dup: {"with": ["alice", "bob"], "to": "name"}
+---
+alice:
+  key: value
+bob:
+  key: value
