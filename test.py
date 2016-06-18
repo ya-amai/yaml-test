@@ -50,14 +50,14 @@ object:
 
     # simple duplicate(loop)
     {"data": """
-$"object_\\(.item[1])": 100
+$"object_\\(.item[0][1])": 100
 _dup: {"with": [1,2]}
     """,
     "result": {"object_1": 100, "object_2": 100}
     },
     {"data": """
 other: ["a"]
-$"object_\\(.item[1])": 100
+$"object_\\(.item[0][1])": 100
 _dup: {"with": [1,2]}
     """,
     "result": {"other": ["a"], "object_1": 100, "object_2": 100}
@@ -82,6 +82,13 @@ comp:
 _dup: {"with": [1,2]}
     """,
     "result": {"other": ["a"], "object_1": 100, "object_2": 100, "comp": {"data": {"test": 102}}}
+    },
+    {"data": """
+$(.name[1]):
+  _include: {"from": "$.a"}
+_dup: {"with": ["alice", "bob"], "to": "name"}
+    """,
+    "result": {"alice": {"key": "value"}, "bob": {"key": "value"}}
     },
 
 ]
@@ -242,7 +249,7 @@ def _process_with_debug(idx, ex, data, context, out={}):
 def main():
     context = DATA
     for i, ex in enumerate(EXAMPLES):
-        if i not in (6,):
+        if i not in (0,1,2,3,4,5,6,7):
             continue
         d = yaml.load(ex["data"])
         e = ex["result"]
