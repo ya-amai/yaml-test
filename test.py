@@ -63,21 +63,21 @@ _dup: {"with": [1,2]}
     "result": {"other": ["a"], "object_1": 100, "object_2": 100}
     },
 
-    # simple if
-    {"data": """
-object: 100
-_if: {"when": False}
-    """,
-    "result": {}
-    },
+# simple if
+#     {"data": """
+# object: 100
+# _if: {"when": False}
+#     """,
+#     "result": {}
+#     },
 
     # complex duplicate
     {"data": """
 other: ["a"]
-$"object_\\(.item[1])": 100
+$"object_\\(.item[0][1])": 100
 comp:
   data:
-    test: $100+.item[1]
+    test: $100+.item[1][1]
     _dup: {"with": [1,2]}
 _dup: {"with": [1,2]}
     """,
@@ -165,18 +165,41 @@ def _process(data, context, out={}):
         # process meta-key
         if "_dup" in data.keys():
             value = data["_dup"]["with"]
+            context_name = data["_dup"].get("to", "item")
             data.pop("_dup", None)
             ret = _jq(value, context)
 
+            # prepare context
+            if context_name == "item":
+                # import pdb; pdb.set_trace()
+                if context_name not in context:
+                    context[context_name] = []
+                context[context_name].append({})
+                
             # duplicate with loop
             for elm in enumerate(ret) if isinstance(ret, list) else ret.items():
+                # update context
+                if context_name == "item":
+                    context[context_name][-1] = elm
+                else:
+                    context[context_name] = elm
+
                 # import pdb; pdb.set_trace()
-                context.update({"item": elm})
                 tmp = {}
-                _process(data, context, tmp)
+                # modify data, this data must be clone
+                _process(deepcopy(data), context, tmp)
                 out.update(tmp)
+            
+            # remove context
+            if context_name == "item":
+                context[context_name].pop()
+
         elif "_include" in data.keys():
-            _debug("###: ignore include ...")
+            # import pdb; pdb.set_trace()
+            value = data["_include"]["from"]
+            data.pop("_include")
+            data.update(_jq(value, context))
+            _process(data, context, out)
         else:
             for k, v in data.items():
                 key = _jq(k, context)
@@ -209,7 +232,7 @@ def process(data, context):
 def _process_with_debug(idx, ex, data, context, out={}):
     logger.setLevel(DEBUG)
     _debug("%03d: ##############################", idx)
-    ret = process(data, context, out)
+    ret = process(data, context)
     _debug("***: Result = %s", ret)
     _debug("-->: Expect = %s", ex)
     _debug("-->: %s", (ret == ex))
@@ -219,7 +242,7 @@ def _process_with_debug(idx, ex, data, context, out={}):
 def main():
     context = DATA
     for i, ex in enumerate(EXAMPLES):
-        if i not in (7,):
+        if i not in (6,):
             continue
         d = yaml.load(ex["data"])
         e = ex["result"]
