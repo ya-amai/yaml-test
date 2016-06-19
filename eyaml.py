@@ -52,7 +52,6 @@ def _process(data, context, out={}):
 
             # prepare context
             if context_name == "item":
-                # import pdb; pdb.set_trace()
                 if context_name not in context:
                     context[context_name] = []
                 context[context_name].append({})
@@ -65,7 +64,6 @@ def _process(data, context, out={}):
                 else:
                     context[context_name] = elm
 
-                # import pdb; pdb.set_trace()
                 tmp = {}
                 # modify data, this data must be clone
                 _process(deepcopy(data), context, tmp)
@@ -76,7 +74,6 @@ def _process(data, context, out={}):
                 context[context_name].pop()
 
         elif "_include" in data.keys():
-            # import pdb; pdb.set_trace()
             value = data["_include"]["from"]
             data.pop("_include")
             data.update(_jq(value, context))
@@ -101,15 +98,14 @@ def _process(data, context, out={}):
 
                     # prepare context
                     if context_name == "item":
-                        # import pdb; pdb.set_trace()
                         if context_name not in context:
                             context[context_name] = []
                         context[context_name].append({})
 
-                    data_tmp = [elm for elm in data if not isinstance(elm, dict) or (isinstance(elm, dict) and "_dup" not in elm.keys())]
+                    data_tmp = [elm for elm in data
+                            if not isinstance(elm, dict) or (isinstance(elm, dict) and "_dup" not in elm.keys())]
                     # duplicate loop
                     for elm2 in enumerate(ret) if isinstance(ret, list) else ret.items():
-                        # import pdb; pdb.set_trace()
                         # update context
                         if context_name == "item":
                             context[context_name][-1] = elm2
@@ -125,8 +121,7 @@ def _process(data, context, out={}):
                     if context_name == "item":
                         context[context_name].pop()
 
-                    # remove duplicated data
-                    # out = [elm for elm in data if elm not in data_tmp]
+                    # replace list with duplicated list
                     break
 
                 elif "_include" in elm.keys():
@@ -134,28 +129,12 @@ def _process(data, context, out={}):
                     value = elm["_include"]["from"]
                     data.extend(_jq(value, context))
                 else:
-                    # import pdb; pdb.set_trace()
                     out.append(_process(elm, context, out={}))
             else:
-                # import pdb; pdb.set_trace()
                 out.append(_process(elm, context, out=[]))
-
-#        allkeys = {key: elm[key] for elm in data if isinstance(elm, dict) for key in elm.keys()}
-#        if "_dup" in allkeys.keys():
-#            print("_dup")
-#        elif "_include" in allkeys.keys():
-#            # import pdb; pdb.set_trace()
-#            # FIXME: _include insert order
-#            value = allkeys["_include"]["from"]
-#            data = [elm for elm in data if not isinstance(elm, dict) or (isinstance(elm, dict) and "_include" not in elm.keys())]
-#            data.extend(_jq(value, context))
-#            out = _process(data, context, out)
-#        else:
-#            out = []
     else:
         out = _jq(data, context)
 
-    #_debug("***: Output = %s", out)
     return out
 
 def process(data, context):
