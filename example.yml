@@ -3,6 +3,9 @@
 a:
   key: value
 b: 100
+c:
+  - 101
+  - 102
 
 ################################################################################
 #
@@ -89,3 +92,50 @@ alice:
   key: value
 bob:
   key: value
+
+
+
+# simple array include
+---
+- {"_include": {"from": "$.c"}}
+---
+- 101
+- 102
+
+# simple array include with other item
+---
+- {"_include": {"from": "$.c"}}
+- "aaa"
+---
+- aaa
+- 101
+- 102
+
+# simple array duplicate
+---
+- {"_dup": {"with": [1,2]}}
+- $100+item[0][1]
+---
+- 101
+- 102
+
+# simple array duplicate with other item
+---
+- {"_dup": {"with": [1,2]}}
+- $100+item[0][1]
+- "aaa"
+---
+- aaa
+- 101
+- 102
+
+# complex object and array
+---
+item:
+  - item[0][1]: 100+item[1][1]
+  - {"_dup": {"with": [1,2,3]}}
+_dup: {"with": ["red", "blue"]}
+---
+item:
+  - red: 103
+  - blue: 101

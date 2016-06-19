@@ -87,8 +87,20 @@ def _process(data, context, out={}):
                 out[key] = _process(v, context, out={})
 
     elif isinstance(data, list):
-        _debug("###: ignore list ...")
-        out = data
+        allkeys = {key: elm[key] for elm in data if isinstance(elm, dict) for key in elm.keys()}
+        if "_dup" in allkeys.keys():
+            print("_dup")
+        elif "_include" in allkeys.keys():
+            # import pdb; pdb.set_trace()
+            # FIXME: _include insert order
+            value = allkeys["_include"]["from"]
+            data = [elm for elm in data if not isinstance(elm, dict) or (isinstance(elm, dict) and "_include" not in elm.keys())]
+            data.extend(_jq(value, context))
+            out = _process(data, context, out)
+        else:
+            out = []
+            for elm in data:
+                out.append(_process(elm, context, out=[]))
     else:
         out = _jq(data, context)
 
