@@ -113,29 +113,33 @@ bob:
 
 # simple array duplicate
 ---
+- $100+.item[0][1]
 - {"_dup": {"with": [1,2]}}
-- $100+item[0][1]
 ---
 - 101
 - 102
 
 # simple array duplicate with other item
+# NOTE: need list concat ?
 ---
 - {"_dup": {"with": [1,2]}}
-- $100+item[0][1]
+- $100+.item[0][1]
 - "aaa"
 ---
-- aaa
 - 101
+- aaa
 - 102
+- aaa
 
 # complex object and array
+# NOTE: need dict update with sub-key
 ---
 item:
-  - item[0][1]: 100+item[1][1]
+  - $.item[0][1]: $100+.item[1][1]
   - {"_dup": {"with": [1,2,3]}}
-_dup: {"with": ["red", "blue"]}
+_dup: {"with": ["blue", "red"]}
 ---
 item:
-  - red: 103
-  - blue: 101
+- red: 101
+- red: 102
+- red: 103
